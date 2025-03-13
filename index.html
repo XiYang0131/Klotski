@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klotski - The Ancient Chinese Sliding Puzzle</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Klotski <span class="subtitle">The Ancient Chinese Puzzle</span></h1>
+        <div class="game-info">
+            <div class="moves">Moves: <span id="moveCount">0</span></div>
+            <button id="resetBtn">Reset Game</button>
+            <select id="levelSelect">
+                <option value="0">Heng Dao Li Ma</option>
+                <option value="1">Zhi Hui Ruo Ding</option>
+                <option value="2">Jiang Yong Cao Ying</option>
+                <option value="3">Qi Tou Bing Jin</option>
+            </select>
+        </div>
+        <div id="game-board" class="game-board"></div>
+        <div class="instructions">
+            <h2>The Legend of Huarong Path</h2>
+            <p>This ancient Chinese sliding block puzzle is based on a famous historical event from the Three Kingdoms period. The game represents Cao Cao's escape after his defeat at the Battle of Red Cliffs.</p>
+            <p>Your goal is to help Cao Cao (the large red block) reach the exit at the bottom. Move the blocks by clicking and dragging them through the narrow path.</p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 
