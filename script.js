@@ -472,13 +472,25 @@ function showWinModal() {
         bestScoreMessage.textContent = `Your best score: ${bestMoves[currentLevel]} moves`;
     }
     
+    // 在用户点击"下一关"之前显示插页广告
     const nextBtn = document.createElement('button');
     nextBtn.textContent = 'Next Level';
     nextBtn.addEventListener('click', () => {
-        document.body.removeChild(modal);
-        currentLevel = (currentLevel + 1) % LEVELS.length;
-        levelSelect.value = currentLevel;
-        initGame();
+        // 显示广告
+        if(Math.random() < 0.5) { // 50%的概率显示广告
+            showInterstitialAd(() => {
+                // 广告关闭后的回调
+                document.body.removeChild(modal);
+                currentLevel = (currentLevel + 1) % LEVELS.length;
+                levelSelect.value = currentLevel;
+                initGame();
+            });
+        } else {
+            document.body.removeChild(modal);
+            currentLevel = (currentLevel + 1) % LEVELS.length;
+            levelSelect.value = currentLevel;
+            initGame();
+        }
     });
     
     content.appendChild(title);
@@ -488,6 +500,18 @@ function showWinModal() {
     modal.appendChild(content);
     
     document.body.appendChild(modal);
+}
+
+// 添加显示插页广告的函数
+function showInterstitialAd(callback) {
+    // 这里将是您的广告网络代码
+    // 例如 Google AdMob 或其他广告网络
+    console.log("Showing interstitial ad");
+    
+    // 模拟广告显示
+    setTimeout(() => {
+        callback(); // 广告结束后调用回调
+    }, 1000);
 }
 
 // Event listeners
@@ -572,4 +596,54 @@ function updateLevelDescription() {
 }
 
 // 初始更新
-updateLevelDescription(); 
+updateLevelDescription();
+
+// 添加"提示"按钮
+const hintBtn = document.createElement('button');
+hintBtn.textContent = 'Get Hint';
+hintBtn.id = 'hintBtn';
+hintBtn.addEventListener('click', showRewardedAd);
+document.querySelector('.game-info').appendChild(hintBtn);
+
+// 添加激励视频广告函数
+function showRewardedAd() {
+    // 显示确认对话框
+    if (confirm("Watch a short video to get a hint?")) {
+        // 这里将是您的广告网络代码
+        console.log("Showing rewarded video ad");
+        
+        // 模拟广告显示
+        setTimeout(() => {
+            // 广告结束后给予提示
+            provideHint();
+        }, 1000);
+    }
+}
+
+// 提供提示的函数
+function provideHint() {
+    alert("Try moving the blocks to create a path for Cao Cao to reach the bottom exit.");
+    // 这里可以实现更复杂的提示逻辑
+}
+
+// 在页面加载时显示
+document.addEventListener('DOMContentLoaded', function() {
+    const adContainer = document.getElementById('bannerAd');
+    
+    // 添加加载消息
+    const loadingMessage = document.createElement('div');
+    loadingMessage.className = 'ad-loading';
+    loadingMessage.textContent = 'Loading advertisement...';
+    
+    // 如果广告容器为空，添加加载消息
+    if (adContainer.childElementCount === 0) {
+        adContainer.appendChild(loadingMessage);
+    }
+    
+    // 5秒后移除加载消息（如果广告未加载）
+    setTimeout(() => {
+        if (document.querySelector('.ad-loading')) {
+            document.querySelector('.ad-loading').remove();
+        }
+    }, 5000);
+}); 

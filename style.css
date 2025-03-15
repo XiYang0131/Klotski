@@ -376,4 +376,24 @@ button:hover, select:hover {
     line-height: 1.4;
     font-size: 0.9em;
     border-left: 3px solid rgba(214, 44, 26, 0.3);
+}
+
+.ad-container {
+    width: 100%;
+    text-align: center;
+    margin: 20px 0; /* 上下边距 */
+    padding: 15px 0;
+    background-color: #f9f5ea;
+    border-radius: 5px;
+    overflow: hidden; /* 确保广告不会溢出容器 */
+}
+
+.ad-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90px;
+    background-color: #f9f5ea;
+    color: #8b4513;
+    font-style: italic;
 } 
