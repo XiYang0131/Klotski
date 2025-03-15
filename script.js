@@ -289,7 +289,7 @@ function moveBlock(clientX, clientY) {
     const deltaYPercent = (clientY - startY) / boardRect.height * 100;
     
     const deltaX = Math.round(deltaXPercent / CELL_SIZE_PERCENT);
-    const deltaY = Math.round(deltaYPercent / 20); // Since height is 5 cells, each cell is 20%
+    const deltaY = Math.round(deltaYPercent / 20);
     
     // If no movement, return
     if (deltaX === 0 && deltaY === 0) return;
@@ -298,11 +298,14 @@ function moveBlock(clientX, clientY) {
     let newX = blockStartX;
     let newY = blockStartY;
     
+    // 一次只允许一个方向的移动，优先选择变化较大的方向
     if (Math.abs(deltaX) > Math.abs(deltaY)) {
         // Horizontal movement
         newX = blockStartX + deltaX;
+        newY = blockStartY; // 确保垂直位置不变
     } else {
         // Vertical movement
+        newX = blockStartX; // 确保水平位置不变
         newY = blockStartY + deltaY;
     }
     
@@ -310,42 +313,77 @@ function moveBlock(clientX, clientY) {
     newX = Math.max(0, Math.min(BOARD_WIDTH - selectedBlock.width, newX));
     newY = Math.max(0, Math.min(BOARD_HEIGHT - selectedBlock.height, newY));
     
-    // Collision detection
-    for (const block of blocks) {
-        if (block === selectedBlock) continue;
+    // 逐步移动检测碰撞，而不是直接跳到目标位置
+    let stepX = selectedBlock.x;
+    let stepY = selectedBlock.y;
+    
+    // 确定移动方向
+    const dirX = newX > selectedBlock.x ? 1 : newX < selectedBlock.x ? -1 : 0;
+    const dirY = newY > selectedBlock.y ? 1 : newY < selectedBlock.y ? -1 : 0;
+    
+    // 逐步移动并检查每一步
+    let validX = selectedBlock.x;
+    let validY = selectedBlock.y;
+    
+    // 水平移动
+    while (stepX !== newX && dirX !== 0) {
+        stepX += dirX;
         
-        if (isColliding(
-            newX, newY, selectedBlock.width, selectedBlock.height,
-            block.x, block.y, block.width, block.height
-        )) {
-            // If collision occurs, revert to last valid position
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                // Horizontal movement collision, adjust X coordinate
-                if (deltaX > 0) {
-                    newX = Math.min(newX, block.x - selectedBlock.width);
-                } else {
-                    newX = Math.max(newX, block.x + block.width);
-                }
-            } else {
-                // Vertical movement collision, adjust Y coordinate
-                if (deltaY > 0) {
-                    newY = Math.min(newY, block.y - selectedBlock.height);
-                } else {
-                    newY = Math.max(newY, block.y + block.height);
-                }
+        // 检查这一步是否有碰撞
+        let hasCollision = false;
+        for (const block of blocks) {
+            if (block === selectedBlock) continue;
+            
+            if (isColliding(
+                stepX, selectedBlock.y, selectedBlock.width, selectedBlock.height,
+                block.x, block.y, block.width, block.height
+            )) {
+                hasCollision = true;
+                break;
             }
+        }
+        
+        if (hasCollision) {
+            break;
+        } else {
+            validX = stepX;
         }
     }
     
-    // If position changed, update block position
-    if (newX !== selectedBlock.x || newY !== selectedBlock.y) {
-        updateBlockPosition(selectedBlock, newX, newY);
+    // 垂直移动
+    while (stepY !== newY && dirY !== 0) {
+        stepY += dirY;
         
-        // Increase move count
+        // 检查这一步是否有碰撞
+        let hasCollision = false;
+        for (const block of blocks) {
+            if (block === selectedBlock) continue;
+            
+            if (isColliding(
+                validX, stepY, selectedBlock.width, selectedBlock.height,
+                block.x, block.y, block.width, block.height
+            )) {
+                hasCollision = true;
+                break;
+            }
+        }
+        
+        if (hasCollision) {
+            break;
+        } else {
+            validY = stepY;
+        }
+    }
+    
+    // 如果位置有变化，更新方块位置
+    if (validX !== selectedBlock.x || validY !== selectedBlock.y) {
+        updateBlockPosition(selectedBlock, validX, validY);
+        
+        // 增加移动次数
         moveCount++;
         moveCountElement.textContent = moveCount;
         
-        // Check for win
+        // 检查是否胜利
         checkWin();
     }
 }
