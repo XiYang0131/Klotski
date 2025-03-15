@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://klotski.it.com/sitemap.xml 
