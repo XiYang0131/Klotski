@@ -3,13 +3,13 @@ const BOARD_WIDTH = 4;
 const BOARD_HEIGHT = 5;
 const CELL_SIZE_PERCENT = 25; // Each cell takes 25% of the board width
 
-// Block types with Chinese character names
+// Block types without Chinese characters
 const BLOCK_TYPES = {
-    CAOCAO: { name: 'Cao Cao 曹操', className: 'caocao' },
-    GENERAL: { name: 'General 将军', className: 'general' },
-    SOLDIER: { name: 'Soldier 士兵', className: 'soldier' },
-    VERTICAL: { name: 'Zhang Fei 张飞', className: 'vertical' },
-    HORIZONTAL: { name: 'Guan Yu 关羽', className: 'horizontal' }
+    CAOCAO: { name: 'Cao Cao', className: 'caocao' },
+    GENERAL: { name: 'General', className: 'general' },
+    SOLDIER: { name: 'Soldier', className: 'soldier' },
+    VERTICAL: { name: 'Zhang Fei', className: 'vertical' },
+    HORIZONTAL: { name: 'Guan Yu', className: 'horizontal' }
 };
 
 // Preset levels with Chinese names
@@ -70,6 +70,14 @@ const LEVELS = [
     ]
 ];
 
+// 添加关卡描述
+const LEVEL_DESCRIPTIONS = [
+    "Heng Dao Li Ma: This formation represents the moment when Cao Cao's forces were blocked by cavalry and infantry.",
+    "Zhi Hui Ruo Ding: Named after Cao Cao's strategic brilliance, this challenging formation tests your command skills.",
+    "Jiang Yong Cao Ying: Depicts Cao Cao surrounded by enemy generals, a desperate situation requiring clever escape.",
+    "Qi Tou Bing Jin: Represents the coordinated advance of enemy forces, closing in from all directions."
+];
+
 // Game state
 let blocks = [];
 let moveCount = 0;
@@ -77,12 +85,101 @@ let selectedBlock = null;
 let startX, startY;
 let blockStartX, blockStartY;
 let currentLevel = 0;
+let bestMoves = JSON.parse(localStorage.getItem('klotskiBestMoves')) || [0, 0, 0, 0];
+const bestMovesElement = document.createElement('div');
+bestMovesElement.className = 'best-moves';
+bestMovesElement.textContent = 'Best: -';
+document.querySelector('.game-info').appendChild(bestMovesElement);
 
 // DOM elements
 const gameBoard = document.getElementById('game-board');
 const moveCountElement = document.getElementById('moveCount');
 const resetBtn = document.getElementById('resetBtn');
 const levelSelect = document.getElementById('levelSelect');
+
+// 替换现有的音效代码
+let audioContext;
+
+// 初始化音频上下文
+function initAudio() {
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {
+        console.log('Web Audio API not supported in this browser');
+    }
+}
+
+// 播放移动音效
+function playMoveSound() {
+    if (!audioContext || !soundEnabled) return;
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4音
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+    
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.2);
+}
+
+// 播放胜利音效
+function playVictorySound() {
+    if (!audioContext || !soundEnabled) return;
+    
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+    
+    notes.forEach((freq, i) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.value = freq;
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime + i * 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + i * 0.1 + 0.3);
+        
+        oscillator.start(audioContext.currentTime + i * 0.1);
+        oscillator.stop(audioContext.currentTime + i * 0.1 + 0.3);
+    });
+}
+
+// 初始化音频
+document.addEventListener('click', function() {
+    if (!audioContext) initAudio();
+}, { once: true });
+
+// 添加音效控制
+const soundToggle = document.createElement('button');
+soundToggle.innerHTML = '🔊';
+soundToggle.className = 'sound-toggle';
+soundToggle.title = 'Toggle Sound';
+let soundEnabled = localStorage.getItem('klotskiSoundEnabled') !== 'false';
+updateSoundButton();
+
+soundToggle.addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem('klotskiSoundEnabled', soundEnabled);
+    updateSoundButton();
+});
+
+function updateSoundButton() {
+    soundToggle.innerHTML = soundEnabled ? '🔊' : '🔇';
+}
+
+document.querySelector('.game-info').appendChild(soundToggle);
+
+// 添加关卡描述元素
+const levelDescription = document.createElement('div');
+levelDescription.className = 'level-description';
+document.querySelector('.container').insertBefore(levelDescription, document.querySelector('.game-board'));
 
 // Initialize game
 function initGame() {
@@ -91,6 +188,13 @@ function initGame() {
     blocks = [];
     moveCount = 0;
     moveCountElement.textContent = '0';
+    
+    // 显示当前关卡的最佳成绩
+    if (bestMoves[currentLevel] > 0) {
+        bestMovesElement.textContent = `Best: ${bestMoves[currentLevel]}`;
+    } else {
+        bestMovesElement.textContent = 'Best: -';
+    }
     
     // Add exit marker
     const exit = document.createElement('div');
@@ -101,6 +205,8 @@ function initGame() {
     LEVELS[currentLevel].forEach(blockData => {
         createBlock(blockData);
     });
+    
+    updateLevelDescription();
 }
 
 // Create block
@@ -246,6 +352,17 @@ function moveBlock(clientX, clientY) {
 
 // Update block position
 function updateBlockPosition(block, newX, newY) {
+    if (block.x !== newX || block.y !== newY) {
+        if (soundEnabled) {
+            if (audioContext) {
+                playMoveSound();
+            } else {
+                initAudio();
+                playMoveSound();
+            }
+        }
+    }
+    
     block.x = newX;
     block.y = newY;
     block.element.style.left = `${newX * CELL_SIZE_PERCENT}%`;
@@ -279,8 +396,23 @@ function checkWin() {
     }
 }
 
-// Show win modal with Chinese elements
+// Show win modal without Chinese characters
 function showWinModal() {
+    if (soundEnabled) {
+        if (audioContext) {
+            playVictorySound();
+        } else {
+            initAudio();
+            playVictorySound();
+        }
+    }
+    
+    // 更新最佳成绩
+    if (bestMoves[currentLevel] === 0 || moveCount < bestMoves[currentLevel]) {
+        bestMoves[currentLevel] = moveCount;
+        localStorage.setItem('klotskiBestMoves', JSON.stringify(bestMoves));
+    }
+    
     const modal = document.createElement('div');
     modal.className = 'win-modal';
     
@@ -288,10 +420,19 @@ function showWinModal() {
     content.className = 'win-content';
     
     const title = document.createElement('h2');
-    title.textContent = 'Victory! 胜利！';
+    title.textContent = 'Victory!';
     
     const message = document.createElement('p');
     message.textContent = `You helped Cao Cao escape in ${moveCount} moves!`;
+    
+    // 添加最佳成绩信息
+    const bestScoreMessage = document.createElement('p');
+    if (moveCount === bestMoves[currentLevel]) {
+        bestScoreMessage.textContent = `This is your best score!`;
+        bestScoreMessage.className = 'best-score';
+    } else {
+        bestScoreMessage.textContent = `Your best score: ${bestMoves[currentLevel]} moves`;
+    }
     
     const nextBtn = document.createElement('button');
     nextBtn.textContent = 'Next Level';
@@ -304,6 +445,7 @@ function showWinModal() {
     
     content.appendChild(title);
     content.appendChild(message);
+    content.appendChild(bestScoreMessage);
     content.appendChild(nextBtn);
     modal.appendChild(content);
     
@@ -317,8 +459,79 @@ resetBtn.addEventListener('click', () => {
 
 levelSelect.addEventListener('change', () => {
     currentLevel = parseInt(levelSelect.value);
+    updateLevelDescription();
     initGame();
 });
 
-// Initialize game
-initGame(); 
+// 添加教程函数
+function showTutorial() {
+    const modal = document.createElement('div');
+    modal.className = 'tutorial-modal';
+    
+    const content = document.createElement('div');
+    content.className = 'tutorial-content';
+    
+    const title = document.createElement('h2');
+    title.textContent = 'How to Play';
+    
+    const steps = document.createElement('div');
+    steps.className = 'tutorial-steps';
+    
+    steps.innerHTML = `
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-text">Click and drag blocks to move them through empty spaces</div>
+        </div>
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-text">Help Cao Cao (the large red block) reach the exit at the bottom</div>
+        </div>
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-text">Complete the puzzle in as few moves as possible</div>
+        </div>
+    `;
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Start Playing';
+    closeBtn.addEventListener('click', () => {
+        document.body.removeChild(modal);
+        localStorage.setItem('klotskiTutorialSeen', 'true');
+    });
+    
+    content.appendChild(title);
+    content.appendChild(steps);
+    content.appendChild(closeBtn);
+    modal.appendChild(content);
+    
+    document.body.appendChild(modal);
+}
+
+// 在初始化游戏后检查是否需要显示教程
+document.addEventListener('DOMContentLoaded', function() {
+    initGame();
+    
+    // 检查用户是否已经看过教程
+    const tutorialSeen = localStorage.getItem('klotskiTutorialSeen');
+    if (!tutorialSeen) {
+        // 延迟显示教程，让游戏先加载完成
+        setTimeout(showTutorial, 500);
+    }
+});
+
+// 添加"如何游戏"按钮
+const howToPlayBtn = document.createElement('button');
+howToPlayBtn.textContent = 'How to Play';
+howToPlayBtn.id = 'howToPlayBtn';
+howToPlayBtn.addEventListener('click', showTutorial);
+
+// 将按钮添加到游戏信息区域
+document.querySelector('.game-info').appendChild(howToPlayBtn);
+
+// 添加更新关卡描述的函数
+function updateLevelDescription() {
+    levelDescription.textContent = LEVEL_DESCRIPTIONS[currentLevel];
+}
+
+// 初始更新
+updateLevelDescription(); 
